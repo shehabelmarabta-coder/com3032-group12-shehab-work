@@ -7,3 +7,8 @@ __pycache__/
 Thumbs.db
 *.pkl
 *.joblib
+
+# Large coursework datasets kept locally only
+/data/raw/*.csv
+/data/processed/*.csv
+

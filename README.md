@@ -1,48 +1,73 @@
-# Credit Card Fraud Detection for Transaction Risk Management
+# Credit Card Fraud Detection — Group 12
 
 ## Purpose
 
-This project supports the COM3032 Business Analytics with Data Visualisation group coursework. The aim is to analyse transaction data and develop fraud detection models that help identify high-risk fraudulent transactions while balancing financial loss, customer friction, and operational cost.
+This project is the COM3032 / COMM074 group coursework. The aim is to rank credit-card transactions by predicted fraud probability so a UK retail bank's fraud-operations team can prioritise high-confidence flags, set policy thresholds that match investigation capacity, and apply differentiated rules to known risk segments (night-time payments, amount bands).
 
-## Project Structure
+## Dataset
 
-```text
+Pozzolo et al. (2015) credit-card fraud dataset, `mlg-ulb/creditcardfraud` on Kaggle. 284,807 transactions over two days in September 2013, 492 fraud (0.172%). After de-duplication: 283,726 rows, 473 fraud, 1 fraud per 599 legitimate. Place the raw file at `data/raw/creditcard.csv` (already in the repo).
+
+## Project structure
+
+```
 data/
-  raw/                 Original datasets added by the group
-  processed/           Cleaned train, validation, and test datasets
+  raw/                 Original creditcard.csv from Kaggle
+  processed/           Stratified 70/15/15 split: train/val/test_processed.csv
 notebooks/
-  group/               Shared preprocessing, visualisation, and recommendations notebooks
-  individual/          Individual modelling notebooks
-src/                   Reusable configuration, evaluation, and plotting code
+  group/               01_Group_Preprocessing (EDA + feature engineering),
+                       02_Group_Visualisation_Recommendations (cross-member)
+  individual/          One folder per member, individual modelling notebook
+src/                   config.py, evaluation.py (locked-schema helpers), plotting.py
 outputs/
-  figures/             Saved charts
-  results/             Saved model metrics and comparison tables
+  figures/             EDA + per-member figures, prefixed by member name
+  results/             results_<name>.csv per member, group_comparison.csv
 reports/
-  sections/            Draft notes for report sections
+  sections/            Section 1, 2, 5, 6 prose drafts
 ```
 
-## Expected Workflow
+## Models (one unique model per member, plus a shared LogReg variant)
 
-1. Add the original transaction dataset to `data/raw/`.
-2. Run `notebooks/group/01_Group_Preprocessing.ipynb` to inspect, clean, split, and save the processed datasets.
-3. Save processed datasets in `data/processed/` as `train_processed.csv`, `val_processed.csv`, and `test_processed.csv`.
-4. Individual notebooks read the processed datasets from `data/processed/`.
-5. Shehab's individual notebook focuses on Logistic Regression and Random Forest models.
-6. Save figures to `outputs/figures/` and model results to `outputs/results/`.
-7. Use `notebooks/group/02_Group_Visualisation_Recommendations.ipynb` to compare group results and prepare business recommendations.
+| Member | Branch | Unique model | Shared LogReg variant |
+|---|---|---|---|
+| Shomique | `shom-modelling` | XGBoost + TreeSHAP | L2, C = 0.1 |
+| Shehab | `shehab-modelling` | Random Forest + TreeSHAP | L2, C = 1.0 |
+| Enisa | `enisa-modelling` | KNN + KernelSHAP | L1, C = 1.0 |
+| Abbas | `abbas-modelling` | SVM (RBF) + KernelSHAP | L2, C = 10.0 |
+| Zachary | `zach-modelling` | MLP (sklearn) + KernelSHAP | ElasticNet |
+| Suheimat | `alsihamat-modelling` | QDA + KernelSHAP | SAGA with polynomial features |
 
-## Running the Notebooks
+## Locked metric spec
 
-Install the practical project dependencies:
+Every notebook reports the same metrics via `src.evaluation.evaluate_model_full`, which writes to a 16-column locked schema:
 
-```bash
-pip install -r requirements.txt
+```
+member, model, split, imbalance_strategy, threshold,
+pr_auc, roc_auc, recall_at_90p,
+f1, precision, recall, accuracy,
+tp, fp, fn, tn
 ```
 
-Start Jupyter from the project root:
+PR-AUC is primary, `recall_at_90p` (recall at >=90% precision) is secondary. Every member tests three imbalance strategies (none, model-specific reweighting, SMOTE on train only) and tunes a threshold on the validation PR curve.
 
-```bash
-jupyter notebook
-```
+## Workflow
 
-Run the group preprocessing notebook before running individual modelling notebooks, because the individual notebooks expect the processed datasets to already exist.
+1. `pip install -r requirements.txt`
+2. Confirm the raw data is at `data/raw/creditcard.csv`.
+3. Run `notebooks/group/01_Group_Preprocessing.ipynb` end-to-end. Produces the three processed CSVs in `data/processed/` and the EDA figures in `outputs/figures/group_*.png`.
+4. Each member runs their own notebook in `notebooks/individual/<name>/` against the shared processed CSVs. Save figures to `outputs/figures/<name>_*.png` and the results CSV to `outputs/results/results_<name>.csv`.
+5. Run `notebooks/group/02_Group_Visualisation_Recommendations.ipynb` to aggregate all member CSVs into the cross-comparison table and figures.
+
+## Report sections
+
+Draft prose for the report lives in `reports/sections/`:
+- `section_1_introduction_notes.md` — business problem, objectives, research questions, dataset overview, data dictionary, inclusion/exclusion criteria, assumptions, CRISP-DM mapping
+- `section_2_preprocessing_notes.md` — data inspection, missing values, duplicates, feature engineering, encoding, scaling, class imbalance, split
+- `section_5_recommendations_notes.md` — best model summary, fraud risk interpretation, three recommendations, limitations, future work
+- `section_6_contribution_statement.md` — per-member contributions
+
+Section 3 (model selection + training) and Section 4 (evaluation + cross-comparison) live inside each member's individual notebook as markdown cells.
+
+## Reproducibility
+
+`random_state = 42` is set in `src/config.py` as `RANDOM_STATE` and used in every split, search, and model. The processed CSVs in `data/processed/` were generated by `01_Group_Preprocessing.ipynb` from the raw data; running that notebook regenerates them.

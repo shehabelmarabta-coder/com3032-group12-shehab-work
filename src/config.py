@@ -9,4 +9,4 @@ OUTPUT_FIGURES_DIR = PROJECT_ROOT / "outputs" / "figures"
 OUTPUT_RESULTS_DIR = PROJECT_ROOT / "outputs" / "results"
 
 RANDOM_STATE = 42
-TARGET_COLUMN = "is_fraud"
+TARGET_COLUMN = "Class"
